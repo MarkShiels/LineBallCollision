@@ -14,18 +14,24 @@ Game::~Game()
 
 void Game::init()
 {
-	p1 = sf::Vector2f(300.f, 300.f);
-	p2 = sf::Vector2f(500.f, 300.f);
+	p0 = sf::Vector2f(300.f, 300.f);
+	p1 = sf::Vector2f(500.f, 450.f);
 
-	line[0] = sf::Vertex(p1);
-	line[1] = sf::Vertex(p2);
+	line[0] = sf::Vertex(p0);
+	line[1] = sf::Vertex(p1);
+
+	ballCenterOffset = sf::Vector2f(ball.getRadius(),ball.getRadius());
 
 	ball.setRadius(10);
-	ball.setFillColor(sf::Color::White);
+	ball.setFillColor(sf::Color::Red);
 	ball.setOrigin(ball.getRadius(), ball.getRadius());
 	ball.setPosition(400, 50);
 
-	gravity = sf::Vector2f(0, .25);
+	box.setSize(sf::Vector2f(ball.getRadius()*2, ball.getRadius()*2));
+	box.setOrigin(ball.getRadius(), ball.getRadius());
+	box.setPosition(ball.getPosition());
+
+	gravity = sf::Vector2f(0, .25f);
 	ballVelocity = sf::Vector2f(0, 0);
 }
 
@@ -64,8 +70,12 @@ void Game::run()
 
 void Game::update()
 {
+	if (!checked)
+	{
+		checkCollision();
+	}
+	
 	updateBall();
-	checkCollision();
 }
 
 void Game::updateBall()
@@ -78,17 +88,61 @@ void Game::updateBall()
 	}
 
 	ball.setPosition(ball.getPosition() + ballVelocity);
-
+	box.setPosition(ball.getPosition());
 }
 
 void Game::checkCollision()
 {
-	line[0].position -= line[0].position;
-	line[1].position -= line[0].position;
+	tempVel = ball.getPosition() + ballVelocity;
+	movementVector = line[0].position;
 
-	ball.setPosition -= line[0].position;
+	line[0].position -= movementVector;
+	line[1].position -= movementVector;
 
-	float angle = thor::polarAngle(p2);
+	ball.setPosition(ball.getPosition() - movementVector);
+
+	pAngle = thor::polarAngle(line[1].position);
+
+	thor::rotate(tempVel, -pAngle);
+
+	sf::Vector2f ballPos = sf::Vector2f(ball.getPosition().x, ball.getPosition().y);
+
+	thor::rotate(line[1].position, -pAngle);
+	thor::rotate(ballPos, -pAngle);
+	ball.setPosition(ballPos);
+	box.setPosition(ball.getPosition());
+	
+	if (tempVel.y > 0)
+	{
+		if ((box.getPosition().x - ball.getRadius()) > line[1].position.x || (box.getPosition().x + ball.getRadius()) < 0)
+		{
+			std::cout << "no collision" << std::endl;
+		}
+		else if(box.getPosition().y + ball.getRadius() >= 0)
+		{
+			std::cout << "collision" << std::endl;
+			checked = true;
+		}
+		else
+		{
+			std::cout << "no collision" << std::endl;
+		}
+	}
+	else
+	{
+		std::cout << "no collision" << std::endl;
+	}
+
+	thor::rotate(line[1].position, pAngle);
+	thor::rotate(ballPos, pAngle);
+	ball.setPosition(ballPos);
+	box.setPosition(ball.getPosition());
+
+	line[0].position += movementVector;
+	line[1].position += movementVector;
+
+	ball.setPosition(ball.getPosition() + movementVector);
+
 
 }
 
@@ -96,6 +150,7 @@ void Game::render()
 {
 	window.clear(sf::Color::Black);
 
+	window.draw(box);
 	window.draw(ball);
 
 	window.draw(line, 2, sf::Lines);
